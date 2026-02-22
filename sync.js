@@ -460,7 +460,13 @@
         flushNow,
         clearRemote,
         handleAuthChange: async () => {
+            // User just signed in/out — reconcile, then force-push any
+            // local data so guest progress migrates to the authenticated user.
             await reconcileWithRemote();
+            const snap = getLocalSnapshot();
+            if (hasSnapshotData(snap)) {
+                await pushSnapshot({ immediate: true });
+            }
         }
     };
 })();
