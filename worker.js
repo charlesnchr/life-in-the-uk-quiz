@@ -18,17 +18,19 @@ async function handleProgress(request, env) {
     return json({ message: 'Missing D1 binding' }, 500);
   }
 
+  const userId = resolveUserId(request);
+
   if (request.method === 'GET') {
     await ensureSchema(env);
     const row = await env.DB.prepare(
       'SELECT payload FROM progress WHERE user_id = ?1'
-    ).bind(DEFAULT_USER).first();
+    ).bind(userId).first();
 
     if (!row || !row.payload) {
       await migrateFromKvIfPresent(env);
       const migrated = await env.DB.prepare(
         'SELECT payload FROM progress WHERE user_id = ?1'
-      ).bind(DEFAULT_USER).first();
+      ).bind(userId).first();
       if (!migrated || !migrated.payload) {
         return json({ message: 'No progress saved yet' }, 404);
       }
@@ -60,13 +62,13 @@ async function handleProgress(request, env) {
        VALUES (?1, ?2, ?3)
        ON CONFLICT(user_id)
        DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`
-    ).bind(DEFAULT_USER, body, payload.updatedAt).run();
+    ).bind(userId, body, payload.updatedAt).run();
     return json({ ok: true, updatedAt: payload.updatedAt }, 200);
   }
 
   if (request.method === 'DELETE') {
     await ensureSchema(env);
-    await env.DB.prepare('DELETE FROM progress WHERE user_id = ?1').bind(DEFAULT_USER).run();
+    await env.DB.prepare('DELETE FROM progress WHERE user_id = ?1').bind(userId).run();
     return json({ ok: true }, 200);
   }
 
@@ -109,6 +111,14 @@ async function migrateFromKvIfPresent(env) {
      ON CONFLICT(user_id)
      DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`
   ).bind(DEFAULT_USER, value, updatedAt).run();
+}
+
+function resolveUserId(request) {
+  const headerValue = request.headers.get('x-user-id');
+  if (headerValue && headerValue.trim()) {
+    return headerValue.trim();
+  }
+  return DEFAULT_USER;
 }
 
 function json(body, status) {

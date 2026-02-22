@@ -17,6 +17,20 @@
         return new Date().toISOString();
     }
 
+    function getUserId() {
+        if (window.lifeUkAuth && typeof window.lifeUkAuth.getUserId === 'function') {
+            return window.lifeUkAuth.getUserId();
+        }
+        return null;
+    }
+
+    function authHeaders() {
+        const headers = { 'Content-Type': 'application/json' };
+        const userId = getUserId();
+        if (userId) headers['X-User-Id'] = userId;
+        return headers;
+    }
+
     function getLocalSnapshot() {
         return {
             srs: localStorage.getItem('lifeuk_srs_data'),
@@ -67,7 +81,7 @@
         try {
             await fetch(API_URL, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authHeaders(),
                 body: JSON.stringify(snapshot)
             });
         } catch (error) {
@@ -110,7 +124,9 @@
         markUpdated();
 
         try {
-            const response = await fetch(API_URL);
+            const response = await fetch(API_URL, {
+                headers: authHeaders()
+            });
             if (!response.ok) {
                 await pushSnapshot();
                 return;
@@ -149,6 +165,9 @@
 
     window.lifeUkSync = {
         init,
-        pushSnapshot
+        pushSnapshot,
+        handleAuthChange: async () => {
+            await init();
+        }
     };
 })();

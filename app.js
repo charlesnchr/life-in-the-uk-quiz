@@ -979,7 +979,12 @@ class QuizApp {
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new QuizApp();
-    if (window.lifeUkSync && typeof window.lifeUkSync.init === 'function') {
-        window.lifeUkSync.init();
-    }
+    (async () => {
+        if (window.lifeUkAuth && typeof window.lifeUkAuth.init === 'function') {
+            await window.lifeUkAuth.init();
+        }
+        if (window.lifeUkSync && typeof window.lifeUkSync.init === 'function') {
+            await window.lifeUkSync.init();
+        }
+    })();
 });
