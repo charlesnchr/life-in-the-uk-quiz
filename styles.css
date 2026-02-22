@@ -194,6 +194,40 @@ body {
     margin-right: 4px;
 }
 
+.sync-indicator {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 8px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.sync-indicator.syncing {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.sync-indicator.success {
+    color: var(--success-dark);
+    border-color: var(--success);
+    background: var(--success-light);
+}
+
+.sync-indicator.error {
+    color: var(--error);
+    border-color: var(--error);
+    background: var(--error-light);
+}
+
+.sync-indicator.offline {
+    color: var(--warning);
+    border-color: var(--warning);
+}
+
 .source-btn {
     padding: 5px 12px;
     border: 2px solid var(--border);

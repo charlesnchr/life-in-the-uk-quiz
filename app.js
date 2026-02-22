@@ -877,7 +877,7 @@ class QuizApp {
 
     // ==================== DATA MANAGEMENT ====================
 
-    resetProgress() {
+    async resetProgress() {
         if (confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
             srs.reset();
             localStorage.removeItem('lifeuk_session');
@@ -887,7 +887,17 @@ class QuizApp {
             this.updateDueCount();
             this.updateFailedCount();
             this.startSession();
-            alert('Progress has been reset.');
+
+            let cloudCleared = true;
+            if (window.lifeUkSync && typeof window.lifeUkSync.clearRemote === 'function') {
+                cloudCleared = await window.lifeUkSync.clearRemote();
+            }
+
+            if (cloudCleared) {
+                alert('Progress has been reset.');
+            } else {
+                alert('Progress reset locally, but cloud clear failed. Please try again when online.');
+            }
         }
     }
 
@@ -912,7 +922,7 @@ class QuizApp {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
             try {
                 const parsed = JSON.parse(reader.result);
                 const importedCards = parsed && parsed.srs && typeof parsed.srs === 'object'
@@ -933,7 +943,17 @@ class QuizApp {
                 this.updateDueCount();
                 this.updateFailedCount();
                 this.loadSession();
-                alert('Data imported successfully.');
+
+                let cloudSynced = true;
+                if (window.lifeUkSync && typeof window.lifeUkSync.flushNow === 'function') {
+                    cloudSynced = await window.lifeUkSync.flushNow();
+                }
+
+                if (cloudSynced) {
+                    alert('Data imported successfully.');
+                } else {
+                    alert('Data imported locally. Cloud sync will retry automatically.');
+                }
             } catch (error) {
                 alert('Could not import this file. Please choose a valid JSON backup.');
             }
