@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life in the UK Test - Smart Practice</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-top">
+                <div style="width: 56px;"></div>
+                <h1>Life in the UK</h1>
+                <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+                    <span class="theme-toggle-thumb" id="theme-icon">☀️</span>
+                </button>
+            </div>
+            <nav class="nav-tabs">
+                <button class="tab-btn active" data-tab="practice">Practice</button>
+                <button class="tab-btn" data-tab="review">Review Due <span id="due-count" class="badge">0</span></button>
+                <button class="tab-btn" data-tab="stats">Stats</button>
+            </nav>
+        </header>
+
+        <!-- Practice Tab -->
+        <main id="practice-tab" class="tab-content active">
+            <div class="source-selector">
+                <span class="source-label">Source:</span>
+                <button class="source-btn active" data-source="official">Official <span id="official-count" class="badge">960</span></button>
+                <button class="source-btn" data-source="maxwellito">Extended <span id="maxwellito-count" class="badge">3034</span></button>
+            </div>
+
+            <div class="mode-selector">
+                <button class="mode-btn active" data-mode="all">All Questions</button>
+                <button class="mode-btn" data-mode="failed">Failed <span id="failed-count" class="badge" style="display:none;">0</span></button>
+                <button class="mode-btn" data-mode="weak">Weak Areas</button>
+                <button class="mode-btn" data-mode="new">New Only</button>
+            </div>
+
+            <div id="quiz-container" class="quiz-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div class="question-header">
+                    <span id="question-number" class="question-number">Question 1</span>
+                    <span id="session-score" class="session-score">0/0</span>
+                </div>
+
+                <div id="question-text" class="question-text"></div>
+
+                <div id="options-container" class="options-container"></div>
+
+                <div id="feedback" class="feedback hidden">
+                    <div id="feedback-icon" class="feedback-icon"></div>
+                    <div class="feedback-content">
+                        <div id="feedback-text" class="feedback-text"></div>
+                        <div id="explanation" class="explanation"></div>
+                    </div>
+                </div>
+
+                <div id="next-container" class="next-container hidden">
+                    <button id="next-btn" class="next-btn">Next Question →</button>
+                </div>
+            </div>
+
+            <div id="session-complete" class="session-complete hidden">
+                <div class="complete-icon">🎉</div>
+                <h2>Session Complete!</h2>
+                <div id="session-results" class="session-results"></div>
+                <button id="restart-btn" class="restart-btn">Start New Session</button>
+            </div>
+        </main>
+
+        <!-- Review Tab (Spaced Repetition) -->
+        <main id="review-tab" class="tab-content">
+            <div class="review-info">
+                <h2>Review & Practice</h2>
+                <p>Practice questions you've gotten wrong or that need reinforcement.</p>
+
+                <div class="review-mode-selector">
+                    <button class="review-mode-btn active" data-review-mode="failed">Failed Questions <span id="review-failed-count" class="badge">0</span></button>
+                    <button class="review-mode-btn" data-review-mode="due">Due for Review <span id="review-due-count" class="badge">0</span></button>
+                    <button class="review-mode-btn" data-review-mode="weak">Weak Areas <span id="review-weak-count" class="badge">0</span></button>
+                </div>
+
+                <div id="review-stats" class="review-stats">
+                    <div class="stat-box">
+                        <span class="stat-value" id="due-today">0</span>
+                        <span class="stat-label">Due Today</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="learning-count">0</span>
+                        <span class="stat-label">Learning</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-value" id="mastered-count">0</span>
+                        <span class="stat-label">Mastered</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="review-container" class="quiz-container hidden">
+                <div class="review-progress">
+                    <span id="review-progress-text" class="question-number">Card 1 of 10</span>
+                    <span id="review-score" class="session-score">0/0</span>
+                </div>
+                <div id="review-question-text" class="question-text"></div>
+                <div id="review-options-container" class="options-container"></div>
+                <div id="review-feedback" class="feedback hidden">
+                    <div id="review-feedback-icon" class="feedback-icon"></div>
+                    <div class="feedback-content">
+                        <div id="review-feedback-text" class="feedback-text"></div>
+                        <div id="review-explanation" class="explanation"></div>
+                    </div>
+                </div>
+                <div id="review-next-container" class="next-container hidden">
+                    <button id="review-next-btn" class="next-btn">Next Card →</button>
+                </div>
+            </div>
+
+            <div id="no-reviews" class="no-reviews">
+                <div class="empty-icon">✅</div>
+                <p id="no-reviews-message">No failed questions yet!</p>
+                <p class="sub-text">Questions you get wrong will appear here for practice.</p>
+                <button id="start-practice-btn" class="restart-btn" style="margin-top: 20px;">Start Practicing</button>
+            </div>
+        </main>
+
+        <!-- Stats Tab -->
+        <main id="stats-tab" class="tab-content">
+            <div class="stats-container">
+                <h2>Your Progress</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-value" id="total-answered">0</span>
+                        <span class="stat-label">Questions Answered</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="accuracy-rate">0%</span>
+                        <span class="stat-label">Accuracy Rate</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="streak-count">0</span>
+                        <span class="stat-label">Current Streak</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="unique-questions">0</span>
+                        <span class="stat-label">Unique Questions</span>
+                    </div>
+                </div>
+
+                <div class="category-breakdown">
+                    <h3>Performance by Topic</h3>
+                    <div id="category-stats" class="category-stats"></div>
+                </div>
+
+                <div class="difficult-questions">
+                    <h3>Most Difficult Questions</h3>
+                    <div id="difficult-list" class="difficult-list"></div>
+                </div>
+
+                <div class="actions">
+                    <button id="reset-stats" class="danger-btn">Reset All Progress</button>
+                    <button id="export-stats" class="secondary-btn">Export Data</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="questions.js"></script>
+    <script src="maxwellito.js"></script>
+    <script src="srs.js"></script>
+    <script src="sync.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

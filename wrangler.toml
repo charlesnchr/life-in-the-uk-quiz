@@ -1,0 +1,12 @@
+name = "life-in-the-uk-quiz"
+main = "worker.js"
+compatibility_date = "2026-02-22"
+account_id = "5251d16ad29f52e5dfd79e2f20ece730"
+
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "PROGRESS_KV"
+id = "__FILL_IN_KV_NAMESPACE_ID__"
