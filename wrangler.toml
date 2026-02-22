@@ -9,4 +9,9 @@ binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "PROGRESS_KV"
-id = "__FILL_IN_KV_NAMESPACE_ID__"
+id = "fefd2a8b71de492c8db5af9fa3aa9939"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lifeuk-progress"
+database_id = "2aa0433c-543d-48da-a026-bfc2419509ef"

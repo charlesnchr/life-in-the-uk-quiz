@@ -153,6 +153,12 @@ class QuizApp {
         // Stats actions
         document.getElementById('reset-stats').addEventListener('click', () => this.resetProgress());
         document.getElementById('export-stats').addEventListener('click', () => this.exportData());
+        document.getElementById('import-stats').addEventListener('click', () => {
+            const fileInput = document.getElementById('import-file');
+            fileInput.value = '';
+            fileInput.click();
+        });
+        document.getElementById('import-file').addEventListener('change', (e) => this.importData(e));
 
         // Keyboard navigation
         document.addEventListener('keydown', (e) => this.handleKeyboard(e));
@@ -899,6 +905,45 @@ class QuizApp {
         a.download = `lifeuk-progress-${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         URL.revokeObjectURL(url);
+    }
+
+    importData(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            try {
+                const parsed = JSON.parse(reader.result);
+                const importedCards = parsed && parsed.srs && typeof parsed.srs === 'object'
+                    ? parsed.srs
+                    : parsed;
+
+                if (!importedCards || typeof importedCards !== 'object' || Array.isArray(importedCards)) {
+                    throw new Error('Invalid backup format');
+                }
+
+                const ok = srs.import(JSON.stringify(importedCards));
+                if (!ok) {
+                    throw new Error('Import failed');
+                }
+
+                localStorage.removeItem('lifeuk_session');
+                this.updateStats();
+                this.updateDueCount();
+                this.updateFailedCount();
+                this.loadSession();
+                alert('Data imported successfully.');
+            } catch (error) {
+                alert('Could not import this file. Please choose a valid JSON backup.');
+            }
+        };
+
+        reader.onerror = () => {
+            alert('Failed to read file. Please try again.');
+        };
+
+        reader.readAsText(file);
     }
 
     // ==================== KEYBOARD NAVIGATION ====================

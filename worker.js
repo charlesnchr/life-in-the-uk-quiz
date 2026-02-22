@@ -1,4 +1,5 @@
 const DATA_KEY = 'single-user-progress';
+const DEFAULT_USER = 'single-user';
 
 export default {
   async fetch(request, env) {
@@ -13,16 +14,31 @@ export default {
 };
 
 async function handleProgress(request, env) {
-  if (!env.PROGRESS_KV) {
-    return json({ message: 'Missing KV binding' }, 500);
+  if (!env.DB) {
+    return json({ message: 'Missing D1 binding' }, 500);
   }
 
   if (request.method === 'GET') {
-    const value = await env.PROGRESS_KV.get(DATA_KEY);
-    if (!value) {
-      return json({ message: 'No progress saved yet' }, 404);
+    await ensureSchema(env);
+    const row = await env.DB.prepare(
+      'SELECT payload FROM progress WHERE user_id = ?1'
+    ).bind(DEFAULT_USER).first();
+
+    if (!row || !row.payload) {
+      await migrateFromKvIfPresent(env);
+      const migrated = await env.DB.prepare(
+        'SELECT payload FROM progress WHERE user_id = ?1'
+      ).bind(DEFAULT_USER).first();
+      if (!migrated || !migrated.payload) {
+        return json({ message: 'No progress saved yet' }, 404);
+      }
+      return new Response(migrated.payload, {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    return new Response(value, {
+
+    return new Response(row.payload, {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -37,16 +53,62 @@ async function handleProgress(request, env) {
     }
 
     payload.updatedAt = payload.updatedAt || new Date().toISOString();
-    await env.PROGRESS_KV.put(DATA_KEY, JSON.stringify(payload));
+    await ensureSchema(env);
+    const body = JSON.stringify(payload);
+    await env.DB.prepare(
+      `INSERT INTO progress (user_id, payload, updated_at)
+       VALUES (?1, ?2, ?3)
+       ON CONFLICT(user_id)
+       DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`
+    ).bind(DEFAULT_USER, body, payload.updatedAt).run();
     return json({ ok: true, updatedAt: payload.updatedAt }, 200);
   }
 
   if (request.method === 'DELETE') {
-    await env.PROGRESS_KV.delete(DATA_KEY);
+    await ensureSchema(env);
+    await env.DB.prepare('DELETE FROM progress WHERE user_id = ?1').bind(DEFAULT_USER).run();
     return json({ ok: true }, 200);
   }
 
   return json({ message: 'Method not allowed' }, 405);
+}
+
+async function ensureSchema(env) {
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS progress (
+      user_id TEXT PRIMARY KEY,
+      payload TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`
+  ).run();
+}
+
+async function migrateFromKvIfPresent(env) {
+  if (!env.PROGRESS_KV) {
+    return;
+  }
+
+  const value = await env.PROGRESS_KV.get(DATA_KEY);
+  if (!value) {
+    return;
+  }
+
+  let updatedAt = new Date().toISOString();
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && parsed.updatedAt) {
+      updatedAt = parsed.updatedAt;
+    }
+  } catch {
+    // Ignore parse errors and use current timestamp.
+  }
+
+  await env.DB.prepare(
+    `INSERT INTO progress (user_id, payload, updated_at)
+     VALUES (?1, ?2, ?3)
+     ON CONFLICT(user_id)
+     DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`
+  ).bind(DEFAULT_USER, value, updatedAt).run();
 }
 
 function json(body, status) {
