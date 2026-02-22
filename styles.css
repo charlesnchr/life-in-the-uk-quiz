@@ -767,9 +767,9 @@ body {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
 }
 
 .stat-card {
@@ -794,6 +794,252 @@ body {
     margin-top: 2px;
 }
 
+.enhanced-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.stats-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.stats-panel.full-width {
+    grid-column: 1 / -1;
+}
+
+.stats-panel h3 {
+    margin-bottom: 10px;
+}
+
+.progress-overview-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text);
+    margin-bottom: 8px;
+}
+
+#questions-seen-percent {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.progress-track {
+    width: 100%;
+    height: 10px;
+    background: var(--card-bg);
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill-bar {
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    transition: width 0.4s ease;
+}
+
+.progress-mastery {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.session-metrics {
+    display: grid;
+    gap: 8px;
+}
+
+.session-metric-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: var(--text);
+}
+
+.session-metric-row strong {
+    font-size: 0.85rem;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.heatmap-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+
+.heatmap-day-labels {
+    display: grid;
+    grid-template-rows: repeat(7, 12px);
+    gap: 3px;
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    width: 12px;
+    flex-shrink: 0;
+}
+
+.heatmap-day-labels span {
+    height: 12px;
+    line-height: 12px;
+}
+
+.heatmap-day-labels span:nth-child(1) {
+    grid-row: 1;
+}
+
+.heatmap-day-labels span:nth-child(2) {
+    grid-row: 3;
+}
+
+.heatmap-day-labels span:nth-child(3) {
+    grid-row: 5;
+}
+
+.activity-heatmap-grid {
+    display: grid;
+    grid-template-rows: repeat(7, 12px);
+    grid-template-columns: repeat(12, 12px);
+    grid-auto-flow: column;
+    gap: 3px;
+}
+
+.heatmap-cell,
+.legend-cell {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: var(--card-bg);
+}
+
+.heatmap-cell.future {
+    opacity: 0.35;
+}
+
+.level-0 {
+    background: var(--card-bg);
+    border-color: var(--border);
+}
+
+.level-1 {
+    background: var(--primary-light);
+    border-color: var(--primary-light);
+}
+
+.level-2 {
+    background: var(--primary);
+    border-color: var(--primary-dark);
+}
+
+.level-3 {
+    background: var(--success);
+    border-color: var(--success-dark);
+}
+
+.heatmap-legend {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.session-history-list {
+    display: grid;
+    gap: 8px;
+}
+
+.session-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.session-main {
+    min-width: 100px;
+    display: grid;
+}
+
+.session-date {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.session-mode {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+
+.session-stats {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.75rem;
+}
+
+.session-score {
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.session-accuracy {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.session-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.session-badge.pass {
+    background: var(--success-light);
+    color: var(--success-dark);
+}
+
+.session-badge.fail {
+    background: var(--error-light);
+    color: var(--error);
+}
+
+.session-duration {
+    color: var(--text-secondary);
+}
+
+.session-history-empty {
+    color: var(--text-secondary);
+    text-align: center;
+    font-size: 0.8rem;
+    padding: 8px;
+}
+
 .category-breakdown,
 .difficult-questions {
     margin-bottom: 20px;
@@ -807,7 +1053,7 @@ body {
 
 .category-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     background: var(--bg);
     padding: 8px 10px;
@@ -824,8 +1070,13 @@ body {
     text-overflow: ellipsis;
 }
 
-.category-bar-container {
+.category-details {
     flex: 1;
+    min-width: 0;
+}
+
+.category-bar-container {
+    width: 100%;
     height: 16px;
     background: var(--card-bg);
     border-radius: 8px;
@@ -849,6 +1100,13 @@ body {
 
 .category-bar.poor {
     background: var(--error);
+}
+
+.category-mastery {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
 }
 
 .category-percent {
@@ -944,6 +1202,23 @@ body {
         grid-template-columns: repeat(2, 1fr);
     }
 
+    .enhanced-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-panel.full-width {
+        grid-column: auto;
+    }
+
+    .session-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .session-stats {
+        justify-content: flex-start;
+    }
+
     .category-stats,
     .difficult-list {
         grid-template-columns: 1fr;
@@ -977,6 +1252,15 @@ body {
         width: 22px;
         height: 22px;
         font-size: 0.6rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .progress-overview-row,
+    .session-metric-row {
+        font-size: 0.76rem;
     }
 
     .question-text {

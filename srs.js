@@ -6,13 +6,40 @@
 class SpacedRepetitionSystem {
     constructor() {
         this.storageKey = 'lifeuk_srs_data';
+        this.maxHistoryEntries = 50;
         this.cards = this.loadCards();
+    }
+
+    // Normalize card shape for backward compatibility
+    normalizeCard(card, questionId) {
+        return {
+            ...card,
+            id: card?.id || questionId,
+            firstSeen: typeof card?.firstSeen === 'number' ? card.firstSeen : null,
+            history: Array.isArray(card?.history)
+                ? card.history.slice(-this.maxHistoryEntries)
+                : []
+        };
     }
 
     // Load cards from localStorage
     loadCards() {
         const data = localStorage.getItem(this.storageKey);
-        return data ? JSON.parse(data) : {};
+        if (!data) return {};
+
+        try {
+            const parsed = JSON.parse(data);
+            if (!parsed || typeof parsed !== 'object') return {};
+
+            const cards = {};
+            for (const [questionId, card] of Object.entries(parsed)) {
+                cards[questionId] = this.normalizeCard(card, questionId);
+            }
+            return cards;
+        } catch (e) {
+            console.error('Failed to parse SRS data:', e);
+            return {};
+        }
     }
 
     // Save cards to localStorage
@@ -33,8 +60,12 @@ class SpacedRepetitionSystem {
                 correctCount: 0,      // Total correct answers
                 incorrectCount: 0,    // Total incorrect answers
                 lapses: 0,            // Times card was forgotten after learning
-                status: 'new'         // new, learning, review, mastered
+                status: 'new',        // new, learning, review, mastered
+                firstSeen: Date.now(),
+                history: []
             };
+        } else {
+            this.cards[questionId] = this.normalizeCard(this.cards[questionId], questionId);
         }
         return this.cards[questionId];
     }
@@ -50,14 +81,28 @@ class SpacedRepetitionSystem {
      *   3 - Correct with serious difficulty
      *   4 - Correct after hesitation
      *   5 - Perfect response
+     * @param {number|null} responseTimeMs - Response time in ms (optional)
      */
-    processResponse(questionId, correct, quality = null) {
+    processResponse(questionId, correct, quality = null, responseTimeMs = null) {
         const card = this.getCard(questionId);
         const now = Date.now();
 
         // Calculate quality if not provided
         if (quality === null) {
             quality = correct ? 4 : 1;
+        }
+
+        if (!Array.isArray(card.history)) {
+            card.history = [];
+        }
+        card.history.push({
+            timestamp: now,
+            correct: Boolean(correct),
+            quality: quality,
+            responseTimeMs: Number.isFinite(responseTimeMs) ? responseTimeMs : null
+        });
+        if (card.history.length > this.maxHistoryEntries) {
+            card.history = card.history.slice(-this.maxHistoryEntries);
         }
 
         card.lastReview = now;
@@ -190,8 +235,10 @@ class SpacedRepetitionSystem {
 
     // Get accuracy for a specific question
     getQuestionAccuracy(questionId) {
-        const card = this.cards[questionId];
-        if (!card) return null;
+        const existingCard = this.cards[questionId];
+        if (!existingCard) return null;
+        const card = this.normalizeCard(existingCard, questionId);
+        this.cards[questionId] = card;
 
         const total = card.correctCount + card.incorrectCount;
         if (total === 0) return null;
@@ -200,8 +247,17 @@ class SpacedRepetitionSystem {
             accuracy: (card.correctCount / total * 100).toFixed(0),
             correct: card.correctCount,
             incorrect: card.incorrectCount,
-            total: total
+            total: total,
+            firstSeen: card.firstSeen,
+            historyLength: Array.isArray(card.history) ? card.history.length : 0
         };
+    }
+
+    // Get answer timeline (history) for a specific question
+    getAnswerTimeline(questionId) {
+        const card = this.cards[questionId];
+        if (!card) return [];
+        return Array.isArray(card.history) ? [...card.history] : [];
     }
 
     // Get hardest questions (sorted by error rate)
@@ -234,7 +290,14 @@ class SpacedRepetitionSystem {
     // Import data from backup
     import(jsonData) {
         try {
-            this.cards = JSON.parse(jsonData);
+            const parsed = JSON.parse(jsonData);
+            if (!parsed || typeof parsed !== 'object') return false;
+
+            const cards = {};
+            for (const [questionId, card] of Object.entries(parsed)) {
+                cards[questionId] = this.normalizeCard(card, questionId);
+            }
+            this.cards = cards;
             this.saveCards();
             return true;
         } catch (e) {

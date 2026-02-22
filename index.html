@@ -149,13 +149,70 @@
                         <span class="stat-label">Accuracy Rate</span>
                     </div>
                     <div class="stat-card">
-                        <span class="stat-value" id="streak-count">0</span>
-                        <span class="stat-label">Current Streak</span>
-                    </div>
-                    <div class="stat-card">
                         <span class="stat-value" id="unique-questions">0</span>
                         <span class="stat-label">Unique Questions</span>
                     </div>
+                </div>
+
+                <div class="enhanced-stats-grid">
+                    <section id="progress-overview" class="stats-panel">
+                        <h3>Progress Overview</h3>
+                        <div class="progress-overview-row">
+                            <span id="questions-seen-text">Questions Seen: 0 / 960</span>
+                            <span id="questions-seen-percent">0%</span>
+                        </div>
+                        <div class="progress-track" aria-hidden="true">
+                            <div id="questions-seen-fill" class="progress-fill-bar"></div>
+                        </div>
+                        <p id="mastery-overview" class="progress-mastery">Mastery: 0% of seen questions mastered</p>
+                    </section>
+
+                    <section class="stats-panel">
+                        <h3>Streaks &amp; Sessions</h3>
+                        <div class="session-metrics">
+                            <div class="session-metric-row">
+                                <span>Current Streak:</span>
+                                <strong id="streak-count">0 days</strong>
+                            </div>
+                            <div class="session-metric-row">
+                                <span>Best Streak:</span>
+                                <strong id="best-streak">0 days</strong>
+                            </div>
+                            <div class="session-metric-row">
+                                <span>Sessions Completed:</span>
+                                <strong id="total-sessions">0</strong>
+                            </div>
+                            <div class="session-metric-row">
+                                <span>Avg Session Accuracy:</span>
+                                <strong id="avg-session-accuracy">0%</strong>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="activity-heatmap" class="stats-panel full-width">
+                        <h3>Activity Heatmap</h3>
+                        <div class="heatmap-layout">
+                            <div class="heatmap-day-labels" aria-hidden="true">
+                                <span>M</span>
+                                <span>W</span>
+                                <span>F</span>
+                            </div>
+                            <div id="activity-heatmap-grid" class="activity-heatmap-grid" aria-label="Last 12 weeks activity"></div>
+                        </div>
+                        <div class="heatmap-legend">
+                            <span>Less</span>
+                            <span class="legend-cell level-0"></span>
+                            <span class="legend-cell level-1"></span>
+                            <span class="legend-cell level-2"></span>
+                            <span class="legend-cell level-3"></span>
+                            <span>More</span>
+                        </div>
+                    </section>
+
+                    <section id="session-history" class="stats-panel full-width">
+                        <h3>Session History</h3>
+                        <div id="session-history-list" class="session-history-list"></div>
+                    </section>
                 </div>
 
                 <div class="category-breakdown">

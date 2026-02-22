@@ -5,11 +5,26 @@
         'lifeuk_session',
         'lifeuk_streak',
         'lifeuk_last_practice',
+        'lifeuk_session_history',
+        'lifeuk_daily_activity',
+        'lifeuk_best_streak',
+        'lifeuk_total_sessions',
         'lifeuk_theme',
         'lifeuk_source',
         UPDATE_KEY
     ];
-    const SNAPSHOT_FIELDS = ['srs', 'session', 'streak', 'lastPractice', 'theme', 'source'];
+    const SNAPSHOT_FIELDS = [
+        'srs',
+        'session',
+        'streak',
+        'lastPractice',
+        'sessionHistory',
+        'dailyActivity',
+        'bestStreak',
+        'totalSessions',
+        'theme',
+        'source'
+    ];
     const API_URL = '/api/progress';
     const BASE_SYNC_DELAY_MS = 900;
     const RETRY_BASE_MS = 1500;
@@ -95,6 +110,10 @@
             session: localStorage.getItem('lifeuk_session'),
             streak: localStorage.getItem('lifeuk_streak'),
             lastPractice: localStorage.getItem('lifeuk_last_practice'),
+            sessionHistory: localStorage.getItem('lifeuk_session_history'),
+            dailyActivity: localStorage.getItem('lifeuk_daily_activity'),
+            bestStreak: localStorage.getItem('lifeuk_best_streak'),
+            totalSessions: localStorage.getItem('lifeuk_total_sessions'),
             theme: localStorage.getItem('lifeuk_theme'),
             source: localStorage.getItem('lifeuk_source'),
             updatedAt: localStorage.getItem(UPDATE_KEY) || null
@@ -138,6 +157,10 @@
             setIfPresent('lifeuk_session', snapshot.session ?? null);
             setIfPresent('lifeuk_streak', snapshot.streak ?? null);
             setIfPresent('lifeuk_last_practice', snapshot.lastPractice ?? null);
+            setIfPresent('lifeuk_session_history', snapshot.sessionHistory ?? null);
+            setIfPresent('lifeuk_daily_activity', snapshot.dailyActivity ?? null);
+            setIfPresent('lifeuk_best_streak', snapshot.bestStreak ?? null);
+            setIfPresent('lifeuk_total_sessions', snapshot.totalSessions ?? null);
             setIfPresent('lifeuk_theme', snapshot.theme ?? null);
             setIfPresent('lifeuk_source', snapshot.source ?? null);
             setIfPresent(UPDATE_KEY, snapshot.updatedAt || nowIso());

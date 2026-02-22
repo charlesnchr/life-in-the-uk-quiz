@@ -16,6 +16,8 @@ class QuizApp {
         this.sessionCorrect = 0;
         this.sessionTotal = 0;
         this.answered = false;
+        this.sessionStartTime = Date.now();
+        this.questionShownAt = null;
 
         // Multi-select state
         this.selectedOptions = [];
@@ -228,6 +230,7 @@ class QuizApp {
         this.sessionCorrect = 0;
         this.sessionTotal = 0;
         this.answered = false;
+        this.sessionStartTime = Date.now();
 
         document.getElementById('quiz-container').classList.remove('hidden');
         document.getElementById('session-complete').classList.add('hidden');
@@ -340,6 +343,7 @@ class QuizApp {
         const question = this.sessionQuestions[this.currentIndex];
         this.answered = this.sessionAnswers[this.currentIndex] !== null;
         this.selectedOptions = [];
+        this.questionShownAt = Date.now();
 
         // Update progress bar
         const progress = ((this.currentIndex) / this.sessionQuestions.length) * 100;
@@ -411,6 +415,7 @@ class QuizApp {
     submitAnswer(question) {
         this.answered = true;
         this.sessionTotal++;
+        const responseTimeMs = this.getResponseTimeMs();
 
         const optionBtns = document.querySelectorAll('#options-container .option-btn');
 
@@ -438,9 +443,14 @@ class QuizApp {
         });
 
         // Update SRS
-        srs.processResponse(question.id, isCorrect);
+        srs.processResponse(question.id, isCorrect, undefined, responseTimeMs);
         this.updateDueCount();
         this.updateFailedCount();
+        this.updateDailyActivity({
+            questionsAnswered: 1,
+            correctCount: isCorrect ? 1 : 0,
+            timeSpentMs: responseTimeMs
+        });
 
         if (isCorrect) {
             this.sessionCorrect++;
@@ -483,6 +493,23 @@ class QuizApp {
 
         const passed = accuracy >= 75;
         const incorrectCount = this.sessionAnswers.filter(a => a === false).length;
+        const sessionStartTime = Number(this.sessionStartTime);
+        const durationMs = Number.isFinite(sessionStartTime)
+            ? Math.max(0, Date.now() - sessionStartTime)
+            : 0;
+
+        this.appendSessionHistory({
+            date: new Date().toISOString(),
+            mode: this.currentMode,
+            source: this.currentSource,
+            questionsTotal: this.sessionTotal,
+            correct: this.sessionCorrect,
+            accuracy,
+            durationMs,
+            passed
+        });
+        this.incrementTotalSessions();
+        this.updateDailyActivity({ sessionsCompleted: 1 });
 
         document.getElementById('session-results').innerHTML = `
             <span class="result-stat">Score: <span class="result-value">${this.sessionCorrect}/${this.sessionTotal}</span></span>
@@ -581,6 +608,7 @@ class QuizApp {
         const question = this.reviewQueue[this.reviewIndex];
         this.answered = false;
         this.reviewSelectedOptions = [];
+        this.questionShownAt = Date.now();
 
         // Update progress
         document.getElementById('review-progress-text').textContent =
@@ -648,6 +676,7 @@ class QuizApp {
     submitReviewAnswer(question) {
         this.answered = true;
         this.reviewTotal++;
+        const responseTimeMs = this.getResponseTimeMs();
 
         const optionBtns = document.querySelectorAll('#review-options-container .option-btn');
 
@@ -676,11 +705,16 @@ class QuizApp {
 
         // Update SRS
         const quality = isCorrect ? 4 : 1;
-        srs.processResponse(question.id, isCorrect, quality);
+        srs.processResponse(question.id, isCorrect, quality, responseTimeMs);
         this.updateDueCount();
         this.updateFailedCount();
         this.updateReviewStats();
         this.updateReviewCounts();
+        this.updateDailyActivity({
+            questionsAnswered: 1,
+            correctCount: isCorrect ? 1 : 0,
+            timeSpentMs: responseTimeMs
+        });
 
         // Update score display
         document.getElementById('review-score').textContent =
@@ -719,27 +753,252 @@ class QuizApp {
         document.getElementById('accuracy-rate').textContent = `${stats.accuracy}%`;
         document.getElementById('unique-questions').textContent = stats.totalCards;
 
-        const streak = this.calculateStreak();
-        document.getElementById('streak-count').textContent = streak;
-
+        this.updateProgressOverview();
+        this.updateStreaksAndSessions();
+        this.updateActivityHeatmap();
+        this.updateSessionHistory();
         this.updateCategoryStats();
         this.updateDifficultQuestions();
+    }
+
+    updateProgressOverview() {
+        const stats = srs.getStats();
+        const activeQuestions = this.getActiveQuestions();
+        const activeIds = new Set(activeQuestions.map((q) => q.id));
+        const cards = Object.values(srs.cards).filter((card) => activeIds.has(card.id));
+
+        const seenCount = activeQuestions.length > 0 ? cards.length : stats.totalCards;
+        const masteredCount = activeQuestions.length > 0
+            ? cards.filter((card) => card.status === 'mastered').length
+            : stats.masteredCount;
+
+        const masteryPercent = seenCount > 0
+            ? Math.round((masteredCount / seenCount) * 100)
+            : 0;
+
+        const questionTotal = this.currentSource === 'official'
+            ? 960
+            : activeQuestions.length;
+        const safeTotal = questionTotal > 0 ? questionTotal : activeQuestions.length;
+        const displayedSeen = safeTotal > 0 ? Math.min(seenCount, safeTotal) : seenCount;
+        const seenPercent = safeTotal > 0
+            ? Math.round((displayedSeen / safeTotal) * 100)
+            : 0;
+
+        document.getElementById('questions-seen-text').textContent =
+            `Questions Seen: ${displayedSeen} / ${safeTotal}`;
+        document.getElementById('questions-seen-percent').textContent = `${seenPercent}%`;
+        document.getElementById('questions-seen-fill').style.width = `${Math.min(100, seenPercent)}%`;
+        document.getElementById('mastery-overview').textContent =
+            `Mastery: ${masteryPercent}% of seen questions mastered`;
+    }
+
+    updateStreaksAndSessions() {
+        const currentStreak = this.calculateStreak();
+        const storedBest = parseInt(localStorage.getItem('lifeuk_best_streak') || '0', 10);
+        const bestStreak = Number.isFinite(storedBest)
+            ? Math.max(storedBest, currentStreak)
+            : currentStreak;
+        localStorage.setItem('lifeuk_best_streak', String(bestStreak));
+
+        const sessionHistoryParsed = this.readJsonStorage('lifeuk_session_history', []);
+        const sessionHistory = Array.isArray(sessionHistoryParsed) ? sessionHistoryParsed : [];
+        const storedTotalSessions = parseInt(localStorage.getItem('lifeuk_total_sessions') || '0', 10);
+        const totalSessions = Number.isFinite(storedTotalSessions) && storedTotalSessions > 0
+            ? storedTotalSessions
+            : sessionHistory.length;
+        if ((!Number.isFinite(storedTotalSessions) || storedTotalSessions <= 0) && sessionHistory.length > 0) {
+            localStorage.setItem('lifeuk_total_sessions', String(totalSessions));
+        }
+
+        const accuracyValues = sessionHistory
+            .map((session) => {
+                const direct = Number(session.accuracy);
+                if (Number.isFinite(direct)) return direct;
+
+                const correct = Number(session.correct);
+                const total = Number(session.questionsTotal ?? session.total);
+                if (Number.isFinite(correct) && Number.isFinite(total) && total > 0) {
+                    return (correct / total) * 100;
+                }
+
+                return null;
+            })
+            .filter((value) => value !== null);
+        const avgSessionAccuracy = accuracyValues.length > 0
+            ? Math.round(accuracyValues.reduce((sum, value) => sum + value, 0) / accuracyValues.length)
+            : 0;
+
+        document.getElementById('streak-count').textContent =
+            `${currentStreak} day${currentStreak === 1 ? '' : 's'}`;
+        document.getElementById('best-streak').textContent =
+            `${bestStreak} day${bestStreak === 1 ? '' : 's'}`;
+        document.getElementById('total-sessions').textContent = String(totalSessions);
+        document.getElementById('avg-session-accuracy').textContent = `${avgSessionAccuracy}%`;
+    }
+
+    updateActivityHeatmap() {
+        const grid = document.getElementById('activity-heatmap-grid');
+        if (!grid) return;
+
+        const parsed = this.readJsonStorage('lifeuk_daily_activity', {});
+        const activity = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            ? parsed
+            : {};
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const startOfWeek = new Date(today);
+        const mondayOffset = (startOfWeek.getDay() + 6) % 7; // Monday = 0
+        startOfWeek.setDate(startOfWeek.getDate() - mondayOffset);
+
+        const endDate = new Date(startOfWeek);
+        endDate.setDate(endDate.getDate() + 6);
+
+        const startDate = new Date(endDate);
+        startDate.setDate(startDate.getDate() - (12 * 7) + 1);
+
+        grid.innerHTML = '';
+
+        for (let i = 0; i < 84; i++) {
+            const day = new Date(startDate);
+            day.setDate(startDate.getDate() + i);
+
+            const dayKey = this.getLocalDateKey(day);
+            const rawValue = activity[dayKey];
+            const questionsAnswered = typeof rawValue === 'number'
+                ? rawValue
+                : Number(rawValue && rawValue.questionsAnswered) || 0;
+
+            let level = 0;
+            if (questionsAnswered >= 26) level = 3;
+            else if (questionsAnswered >= 11) level = 2;
+            else if (questionsAnswered >= 1) level = 1;
+
+            const cell = document.createElement('div');
+            cell.className = `heatmap-cell level-${level}`;
+            if (day > today) {
+                cell.classList.add('future');
+            }
+            cell.title = `${dayKey}: ${questionsAnswered} question${questionsAnswered === 1 ? '' : 's'} answered`;
+            grid.appendChild(cell);
+        }
+    }
+
+    updateSessionHistory() {
+        const container = document.getElementById('session-history-list');
+        if (!container) return;
+
+        const parsed = this.readJsonStorage('lifeuk_session_history', []);
+        const history = Array.isArray(parsed) ? parsed : [];
+        const recentSessions = history.slice(-10).reverse();
+
+        container.innerHTML = '';
+
+        if (recentSessions.length === 0) {
+            container.innerHTML = '<p class="session-history-empty">No sessions recorded yet.</p>';
+            return;
+        }
+
+        recentSessions.forEach((session) => {
+            let correct = Number(session.correct);
+            let total = Number(session.questionsTotal ?? session.total);
+            let hasScore = Number.isFinite(correct) && Number.isFinite(total);
+            let score = hasScore ? `${correct}/${total}` : '0/0';
+
+            if (!hasScore && typeof session.score === 'string') {
+                const matched = session.score.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+                if (matched) {
+                    correct = Number(matched[1]);
+                    total = Number(matched[2]);
+                    hasScore = true;
+                    score = `${correct}/${total}`;
+                }
+            }
+
+            const explicitAccuracy = Number(session.accuracy);
+            const accuracy = Number.isFinite(explicitAccuracy)
+                ? Math.round(explicitAccuracy)
+                : (hasScore && total > 0 ? Math.round((correct / total) * 100) : 0);
+
+            const passed = typeof session.passed === 'boolean'
+                ? session.passed
+                : accuracy >= 75;
+
+            const durationMs = Number(session.durationMs);
+            const durationSecondsValue = Number(session.durationSeconds ?? session.duration);
+            const durationSeconds = Number.isFinite(durationMs)
+                ? Math.round(durationMs / 1000)
+                : (Number.isFinite(durationSecondsValue) ? Math.round(durationSecondsValue) : 0);
+
+            const date = new Date(session.date);
+            const hasDate = !Number.isNaN(date.getTime());
+            const dateText = hasDate
+                ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                : 'Unknown date';
+
+            const item = document.createElement('div');
+            item.className = 'session-item';
+            item.innerHTML = `
+                <div class="session-main">
+                    <span class="session-date">${dateText}</span>
+                    <span class="session-mode">${this.getSessionModeLabel(session.mode)}</span>
+                </div>
+                <div class="session-stats">
+                    <span class="session-score">${score}</span>
+                    <span class="session-accuracy">${accuracy}%</span>
+                    <span class="session-badge ${passed ? 'pass' : 'fail'}">${passed ? 'PASS' : 'FAIL'}</span>
+                    <span class="session-duration">${this.formatSessionDuration(durationSeconds)}</span>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    getSessionModeLabel(mode) {
+        const labels = {
+            all: 'All Questions',
+            failed: 'Failed Questions',
+            weak: 'Weak Areas',
+            new: 'New Questions'
+        };
+        return labels[mode] || 'Practice';
+    }
+
+    formatSessionDuration(totalSeconds) {
+        const seconds = Number(totalSeconds);
+        if (!Number.isFinite(seconds) || seconds <= 0) return '--';
+
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainingSeconds = seconds % 60;
+
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        if (minutes > 0) return `${minutes}m ${remainingSeconds}s`;
+        return `${remainingSeconds}s`;
     }
 
     updateCategoryStats() {
         const categoryStats = {};
 
         categories.forEach(cat => {
-            categoryStats[cat.id] = { correct: 0, total: 0 };
+            categoryStats[cat.id] = { correct: 0, total: 0, seen: 0, mastered: 0 };
         });
 
         this.getActiveQuestions().forEach(q => {
             const card = srs.cards[q.id];
             if (card) {
                 const cat = q.category || 'General';
-                if (!categoryStats[cat]) categoryStats[cat] = { correct: 0, total: 0 };
+                if (!categoryStats[cat]) {
+                    categoryStats[cat] = { correct: 0, total: 0, seen: 0, mastered: 0 };
+                }
                 categoryStats[cat].correct += card.correctCount;
                 categoryStats[cat].total += card.correctCount + card.incorrectCount;
+                categoryStats[cat].seen += 1;
+                if (card.status === 'mastered') {
+                    categoryStats[cat].mastered += 1;
+                }
             }
         });
 
@@ -748,17 +1007,20 @@ class QuizApp {
 
         categories.forEach(cat => {
             const stats = categoryStats[cat.id];
-            if (stats.total === 0) return;
+            if (stats.seen === 0) return;
 
-            const accuracy = Math.round((stats.correct / stats.total) * 100);
+            const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
             const barClass = accuracy >= 75 ? 'good' : accuracy >= 50 ? 'medium' : 'poor';
 
             const row = document.createElement('div');
             row.className = 'category-row';
             row.innerHTML = `
                 <span class="category-name">${cat.icon} ${cat.name}</span>
-                <div class="category-bar-container">
-                    <div class="category-bar ${barClass}" style="width: ${accuracy}%"></div>
+                <div class="category-details">
+                    <div class="category-bar-container">
+                        <div class="category-bar ${barClass}" style="width: ${accuracy}%"></div>
+                    </div>
+                    <span class="category-mastery">${stats.mastered} mastered / ${stats.seen} seen</span>
                 </div>
                 <span class="category-percent">${accuracy}%</span>
             `;
@@ -798,23 +1060,117 @@ class QuizApp {
 
     calculateStreak() {
         const lastPractice = localStorage.getItem('lifeuk_last_practice');
-        const streak = parseInt(localStorage.getItem('lifeuk_streak') || '0');
+        const storedStreak = parseInt(localStorage.getItem('lifeuk_streak') || '0', 10);
+        const streak = Number.isFinite(storedStreak) ? storedStreak : 0;
 
         const today = new Date().toDateString();
         const yesterday = new Date(Date.now() - 86400000).toDateString();
+        let currentStreak = streak;
 
         if (lastPractice === today) {
-            return streak;
+            currentStreak = streak;
         } else if (lastPractice === yesterday) {
-            const newStreak = streak + 1;
-            localStorage.setItem('lifeuk_streak', newStreak);
+            currentStreak = streak + 1;
+            localStorage.setItem('lifeuk_streak', currentStreak);
             localStorage.setItem('lifeuk_last_practice', today);
-            return newStreak;
         } else {
+            currentStreak = 1;
             localStorage.setItem('lifeuk_streak', '1');
             localStorage.setItem('lifeuk_last_practice', today);
-            return 1;
         }
+
+        const storedBest = parseInt(localStorage.getItem('lifeuk_best_streak') || '0', 10);
+        const bestStreak = Number.isFinite(storedBest) ? storedBest : 0;
+        if (currentStreak > bestStreak) {
+            localStorage.setItem('lifeuk_best_streak', String(currentStreak));
+        }
+
+        return currentStreak;
+    }
+
+    getResponseTimeMs() {
+        const shownAt = Number(this.questionShownAt);
+        if (!Number.isFinite(shownAt)) return 0;
+        return Math.max(0, Date.now() - shownAt);
+    }
+
+    getLocalDateKey(date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    readJsonStorage(key, fallback) {
+        const value = localStorage.getItem(key);
+        if (!value) return fallback;
+
+        try {
+            const parsed = JSON.parse(value);
+            return parsed ?? fallback;
+        } catch {
+            return fallback;
+        }
+    }
+
+    appendSessionHistory(record) {
+        const parsed = this.readJsonStorage('lifeuk_session_history', []);
+        const history = Array.isArray(parsed) ? parsed : [];
+        history.push(record);
+
+        const trimmed = history.length > 100
+            ? history.slice(history.length - 100)
+            : history;
+        localStorage.setItem('lifeuk_session_history', JSON.stringify(trimmed));
+    }
+
+    updateDailyActivity(delta = {}) {
+        const parsed = this.readJsonStorage('lifeuk_daily_activity', {});
+        const activity = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+            ? parsed
+            : {};
+
+        const todayKey = this.getLocalDateKey();
+        const current = activity[todayKey] && typeof activity[todayKey] === 'object'
+            ? activity[todayKey]
+            : {};
+
+        const currentQuestionsAnswered = Number(current.questionsAnswered) || 0;
+        const currentCorrectCount = Number(current.correctCount) || 0;
+        const currentSessionsCompleted = Number(current.sessionsCompleted) || 0;
+        const currentTimeSpentMs = Number(current.timeSpentMs) || 0;
+
+        const deltaQuestionsAnswered = Number(delta.questionsAnswered) || 0;
+        const deltaCorrectCount = Number(delta.correctCount) || 0;
+        const deltaSessionsCompleted = Number(delta.sessionsCompleted) || 0;
+        const deltaTimeSpentMs = Number(delta.timeSpentMs) || 0;
+
+        activity[todayKey] = {
+            questionsAnswered: Math.max(0, currentQuestionsAnswered + deltaQuestionsAnswered),
+            correctCount: Math.max(0, currentCorrectCount + deltaCorrectCount),
+            sessionsCompleted: Math.max(0, currentSessionsCompleted + deltaSessionsCompleted),
+            timeSpentMs: Math.max(0, currentTimeSpentMs + deltaTimeSpentMs)
+        };
+
+        const activityDates = Object.keys(activity)
+            .filter((dateKey) => /^\d{4}-\d{2}-\d{2}$/.test(dateKey))
+            .sort();
+        if (activityDates.length > 90) {
+            const toRemove = activityDates.slice(0, activityDates.length - 90);
+            toRemove.forEach((dateKey) => {
+                delete activity[dateKey];
+            });
+        }
+
+        localStorage.setItem('lifeuk_daily_activity', JSON.stringify(activity));
+    }
+
+    incrementTotalSessions() {
+        const storedTotal = parseInt(localStorage.getItem('lifeuk_total_sessions') || '0', 10);
+        const safeTotal = Number.isFinite(storedTotal) ? storedTotal : 0;
+        const nextTotal = safeTotal + 1;
+        localStorage.setItem('lifeuk_total_sessions', String(nextTotal));
+        return nextTotal;
     }
 
     updateDueCount() {
@@ -842,7 +1198,8 @@ class QuizApp {
             answers: this.sessionAnswers,
             currentIndex: this.currentIndex,
             sessionCorrect: this.sessionCorrect,
-            sessionTotal: this.sessionTotal
+            sessionTotal: this.sessionTotal,
+            sessionStartTime: this.sessionStartTime
         };
         localStorage.setItem('lifeuk_session', JSON.stringify(session));
     }
@@ -861,6 +1218,10 @@ class QuizApp {
                 this.currentIndex = session.currentIndex || 0;
                 this.sessionCorrect = session.sessionCorrect || 0;
                 this.sessionTotal = session.sessionTotal || 0;
+                const savedSessionStartTime = Number(session.sessionStartTime);
+                this.sessionStartTime = Number.isFinite(savedSessionStartTime)
+                    ? savedSessionStartTime
+                    : Date.now();
 
                 if (this.sessionQuestions.length > 0 && this.currentIndex < this.sessionQuestions.length) {
                     this.renderProgressIndicator();
@@ -883,6 +1244,10 @@ class QuizApp {
             localStorage.removeItem('lifeuk_session');
             localStorage.removeItem('lifeuk_streak');
             localStorage.removeItem('lifeuk_last_practice');
+            localStorage.removeItem('lifeuk_session_history');
+            localStorage.removeItem('lifeuk_daily_activity');
+            localStorage.removeItem('lifeuk_best_streak');
+            localStorage.removeItem('lifeuk_total_sessions');
             this.updateStats();
             this.updateDueCount();
             this.updateFailedCount();
