@@ -737,6 +737,7 @@ class QuizApp {
         }
 
         document.getElementById('review-next-container').classList.remove('hidden');
+        this.saveSession();
     }
 
     nextReviewCard() {

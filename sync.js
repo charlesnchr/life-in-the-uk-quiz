@@ -26,7 +26,7 @@
         'source'
     ];
     const API_URL = '/api/progress';
-    const BASE_SYNC_DELAY_MS = 900;
+    const BASE_SYNC_DELAY_MS = 0;
     const RETRY_BASE_MS = 1500;
     const RETRY_MAX_MS = 30000;
     const CLEAR_ATTEMPTS = 3;
