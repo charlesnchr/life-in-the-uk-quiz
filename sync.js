@@ -90,17 +90,31 @@
         el.textContent = defaults[state] || 'Cloud idle';
     }
 
+    // Return a stable per-device guest ID, creating one on first call.
+    // This ensures every device gets its own DB row even when not signed in,
+    // so unauthenticated users never overwrite each other's progress.
+    function getGuestId() {
+        const KEY = 'lifeuk_guest_id';
+        let id = localStorage.getItem(KEY);
+        if (!id) {
+            id = 'guest-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
+            localStorage.setItem(KEY, id);
+        }
+        return id;
+    }
+
     function getUserId() {
         if (window.lifeUkAuth && typeof window.lifeUkAuth.getUserId === 'function') {
-            return window.lifeUkAuth.getUserId();
+            const authId = window.lifeUkAuth.getUserId();
+            if (authId) return authId;
         }
-        return null;
+        return getGuestId();
     }
 
     function authHeaders() {
         const headers = { 'Content-Type': 'application/json' };
-        const userId = getUserId();
-        if (userId) headers['X-User-Id'] = userId;
+        // Always include the user ID — authenticated or guest.
+        headers['X-User-Id'] = getUserId();
         return headers;
     }
 
@@ -378,7 +392,22 @@
                 await reconcileOnce();
             } catch (error) {
                 console.warn('Cloud sync init failed:', error);
-                setSyncStatus(isOffline() ? 'offline' : 'error', 'Cloud unavailable');
+                // Schedule a retry so a transient network hiccup at startup
+                // doesn't permanently leave the client without cloud state.
+                if (!retryTimer) {
+                    const delay = Math.min(RETRY_BASE_MS * (2 ** retryAttempt), RETRY_MAX_MS);
+                    retryAttempt += 1;
+                    setSyncStatus(
+                        isOffline() ? 'offline' : 'error',
+                        `Cloud unavailable, retrying in ${Math.ceil(delay / 1000)}s`
+                    );
+                    retryTimer = setTimeout(() => {
+                        retryTimer = null;
+                        void reconcileWithRemote();
+                    }, delay);
+                } else {
+                    setSyncStatus(isOffline() ? 'offline' : 'error', 'Cloud unavailable');
+                }
             } finally {
                 isReconciling = false;
             }

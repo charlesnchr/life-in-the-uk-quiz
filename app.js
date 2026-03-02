@@ -303,11 +303,14 @@ class QuizApp {
                 box.classList.add('current');
             }
 
-            // Allow clicking to jump to question (only answered ones)
+            // Allow clicking to jump to any answered question, or the frontier
+            // (first unanswered), even when currentIndex has been moved by browsing back.
             box.addEventListener('click', () => {
-                if (this.sessionAnswers[i] !== null || i === this.currentIndex) {
+                const frontier = this.sessionAnswers.findIndex(a => a === null);
+                const isAnswered = this.sessionAnswers[i] !== null;
+                const isFrontier = frontier === -1 || i === frontier;
+                if (isAnswered || isFrontier) {
                     this.currentIndex = i;
-                    this.answered = this.sessionAnswers[i] !== null;
                     this.showQuestion();
                     this.updateProgressIndicator();
                 }
@@ -375,9 +378,37 @@ class QuizApp {
             optionsContainer.appendChild(btn);
         });
 
-        // Hide feedback and next button
-        document.getElementById('feedback').classList.add('hidden');
-        document.getElementById('next-container').classList.add('hidden');
+        if (this.answered) {
+            // Reviewing a previously-answered question: show correct answers and
+            // disable all options so nothing can be re-submitted.
+            const optionBtns = optionsContainer.querySelectorAll('.option-btn');
+            optionBtns.forEach((btn, idx) => {
+                btn.classList.add('disabled');
+                if (question.correct.includes(idx)) {
+                    btn.classList.add('correct');
+                    btn.querySelector('.option-letter').innerHTML = '✓';
+                }
+            });
+
+            // Restore feedback banner
+            const wasCorrect = this.sessionAnswers[this.currentIndex];
+            const feedback = document.getElementById('feedback');
+            feedback.classList.remove('hidden', 'correct', 'incorrect');
+            feedback.classList.add(wasCorrect ? 'correct' : 'incorrect');
+            document.getElementById('feedback-icon').textContent = wasCorrect ? '✓' : '✗';
+            document.getElementById('feedback-text').textContent = wasCorrect ? 'Correct!' : 'Incorrect';
+            const explanation = document.getElementById('explanation');
+            if (question.tip) {
+                explanation.textContent = question.tip;
+                explanation.style.display = 'block';
+            } else {
+                explanation.style.display = 'none';
+            }
+            document.getElementById('next-container').classList.remove('hidden');
+        } else {
+            document.getElementById('feedback').classList.add('hidden');
+            document.getElementById('next-container').classList.add('hidden');
+        }
 
         this.updateProgressIndicator();
     }
