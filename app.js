@@ -510,6 +510,9 @@ class QuizApp {
         });
         this.incrementTotalSessions();
         this.updateDailyActivity({ sessionsCompleted: 1 });
+        if (this.sessionTotal > 0) {
+            this.recordPracticeForStreak();
+        }
 
         document.getElementById('session-results').innerHTML = `
             <span class="result-stat">Score: <span class="result-value">${this.sessionCorrect}/${this.sessionTotal}</span></span>
@@ -1059,34 +1062,37 @@ class QuizApp {
         });
     }
 
+    // Read-only: returns the current streak value without modifying state.
+    // Call recordPracticeForStreak() at session end to actually advance the streak.
     calculateStreak() {
+        const lastPractice = localStorage.getItem('lifeuk_last_practice');
+        const storedStreak = parseInt(localStorage.getItem('lifeuk_streak') || '0', 10);
+        return Number.isFinite(storedStreak) ? storedStreak : 0;
+    }
+
+    // Write: advances the streak. Must only be called when the user has
+    // actually answered questions in the current session.
+    recordPracticeForStreak() {
         const lastPractice = localStorage.getItem('lifeuk_last_practice');
         const storedStreak = parseInt(localStorage.getItem('lifeuk_streak') || '0', 10);
         const streak = Number.isFinite(storedStreak) ? storedStreak : 0;
 
         const today = new Date().toDateString();
         const yesterday = new Date(Date.now() - 86400000).toDateString();
-        let currentStreak = streak;
 
         if (lastPractice === today) {
-            currentStreak = streak;
-        } else if (lastPractice === yesterday) {
-            currentStreak = streak + 1;
-            localStorage.setItem('lifeuk_streak', currentStreak);
-            localStorage.setItem('lifeuk_last_practice', today);
-        } else {
-            currentStreak = 1;
-            localStorage.setItem('lifeuk_streak', '1');
-            localStorage.setItem('lifeuk_last_practice', today);
+            return; // Already recorded today's practice — nothing to do
         }
+
+        const newStreak = lastPractice === yesterday ? streak + 1 : 1;
+        localStorage.setItem('lifeuk_streak', String(newStreak));
+        localStorage.setItem('lifeuk_last_practice', today);
 
         const storedBest = parseInt(localStorage.getItem('lifeuk_best_streak') || '0', 10);
         const bestStreak = Number.isFinite(storedBest) ? storedBest : 0;
-        if (currentStreak > bestStreak) {
-            localStorage.setItem('lifeuk_best_streak', String(currentStreak));
+        if (newStreak > bestStreak) {
+            localStorage.setItem('lifeuk_best_streak', String(newStreak));
         }
-
-        return currentStreak;
     }
 
     getResponseTimeMs() {
@@ -1341,7 +1347,7 @@ class QuizApp {
         const container = isReview ? 'review-options-container' : 'options-container';
         const optionBtns = document.querySelectorAll(`#${container} .option-btn`);
 
-        const keyMap = { '1': 0, '2': 1, '3': 2, '4': 3, 'a': 0, 'b': 1, 'c': 2, 'd': 3 };
+        const keyMap = { '1': 0, '2': 1, '3': 2, '4': 3, '5': 4, '6': 5, 'a': 0, 'b': 1, 'c': 2, 'd': 3, 'e': 4, 'f': 5 };
         const key = e.key.toLowerCase();
 
         if (keyMap.hasOwnProperty(key) && !this.answered) {
