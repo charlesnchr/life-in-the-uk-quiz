@@ -48,8 +48,8 @@
         }
 
         client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-        const { data } = await client.auth.getUser();
-        currentUser = data ? data.user : null;
+        const { data } = await client.auth.getSession();
+        currentUser = data && data.session ? data.session.user : null;
         renderAuth();
 
         const signInBtn = document.getElementById('auth-signin');

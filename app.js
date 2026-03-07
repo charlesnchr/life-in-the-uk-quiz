@@ -507,6 +507,9 @@ class QuizApp {
         document.getElementById('next-container').classList.remove('hidden');
         this.updateProgressIndicator();
         this.saveSession();
+        if (window.lifeUkSync && typeof window.lifeUkSync.flushNow === 'function') {
+            window.lifeUkSync.flushNow();
+        }
     }
 
     nextQuestion() {
